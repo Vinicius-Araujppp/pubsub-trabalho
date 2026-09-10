@@ -1,0 +1,101 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  created
+  paid
+  shipped
+  delivered
+  canceled
+}
+
+model Customer {
+  id        BigInt   @id
+  name      String
+  email     String
+  document  String
+  orders    Order[]
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("cliente")
+}
+
+model Order {
+  id          String      @id @default(uuid()) @db.Uuid
+  orderUuid   String      @unique @map("order_uuid")
+  createdAt   DateTime    @map("created_at")
+  indexedAt   DateTime    @default(now()) @map("indexed_at")
+  channel     String
+  status      OrderStatus
+  customerId  BigInt      @map("customer_id")
+  sellerId    BigInt      @map("seller_id")
+  sellerName  String      @map("seller_name")
+  sellerCity  String      @map("seller_city")
+  sellerState String      @map("seller_state")
+  metadata    Json?
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  items       OrderItem[]
+  payment     Payment?
+  shipment    Shipment?
+
+  @@index([customerId])
+  @@index([sellerId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("pedido")
+}
+
+model Product {
+  id              String      @id
+  title           String
+  categoryId      String      @map("category_id")
+  categoryName    String      @map("category_name")
+  subCategoryId   String      @map("sub_category_id")
+  subCategoryName String      @map("sub_category_name")
+  items           OrderItem[]
+
+  @@map("produto")
+}
+
+model OrderItem {
+  id        Int
+  orderId   String  @map("order_id") @db.Uuid
+  productId String  @map("product_id")
+  unitPrice Decimal @map("unit_price") @db.Decimal(14, 2)
+  quantity  Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+
+  @@id([orderId, id])
+  @@index([productId])
+  @@map("item_pedido")
+}
+
+model Payment {
+  id            String @id @default(uuid()) @db.Uuid
+  orderId       String @unique @map("order_id") @db.Uuid
+  method        String
+  status        String
+  transactionId String @map("transaction_id")
+  order         Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("pagamento")
+}
+
+model Shipment {
+  id           String @id @default(uuid()) @db.Uuid
+  orderId      String @unique @map("order_id") @db.Uuid
+  carrier      String
+  service      String
+  status       String
+  trackingCode String @map("tracking_code")
+  order        Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("envio")
+}

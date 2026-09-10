@@ -1,3 +1,5 @@
+require("dotenv").config();
+
 const { PubSub } = require("@google-cloud/pubsub");
 
 const projectId = process.env.GOOGLE_CLOUD_PROJECT || "serjava-demo";
