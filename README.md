@@ -2,8 +2,8 @@
 
 ## API + PostgreSQL
 
-The API uses Express, Prisma and PostgreSQL. Start the database and apply the
-schema with:
+A API usa Express, Prisma e PostgreSQL. Inicie o banco de dados e aplique o
+schema com:
 
 ```powershell
 npm run db:up
@@ -12,9 +12,9 @@ npm run db:seed
 npm start
 ```
 
-Health check: `GET http://localhost:3000/health`
+Verificação de saúde: `GET http://localhost:3000/health`
 
-Available endpoints:
+Endpoints disponíveis:
 
 - `GET /orders?page=1&limit=20&order=desc`
 - `GET /orders?customer.id=7788&status=paid&seller.id=55`
@@ -23,11 +23,11 @@ Available endpoints:
 - `GET /orders/ORD-2025-0001/items`
 - `GET /orders/financial-summary?seller.id=55&start_date=2025-01-01&end_date=2025-12-31`
 
-Order totals and item totals are calculated from `unit_price * quantity`.
-Canceled orders are excluded from financial revenue. The accepted statuses are
-`created`, `paid`, `shipped`, `delivered` and `canceled`.
+Os totais dos pedidos e dos itens são calculados com base em
+`unit_price * quantity`. Pedidos cancelados não entram na receita financeira.
+Os status aceitos são `created`, `paid`, `shipped`, `delivered` e `canceled`.
 
-## Google Cloud setup
+## Configuração do Google Cloud
 
 ```powershell
 gcloud config set project serjava-demo
@@ -36,31 +36,31 @@ gcloud pubsub topics create eventos
 gcloud pubsub subscriptions create eventos-consumidor --topic=eventos
 ```
 
-Authenticate without storing a key in this project:
+Autentique-se sem armazenar uma chave neste projeto:
 
 ```powershell
 gcloud auth application-default login
 ```
 
-For a service account, set `GOOGLE_APPLICATION_CREDENTIALS` to a new rotated
-key file kept outside this repository.
+Para uma conta de serviço, defina `GOOGLE_APPLICATION_CREDENTIALS` apontando
+para um novo arquivo de chave rotacionado, mantido fora deste repositório.
 
-## Run
+## Execução
 
-Open two terminals in this directory. Start the subscriber first:
+Abra dois terminais neste diretório. Inicie o subscriber primeiro:
 
 ```powershell
 npm run subscribe
 ```
 
-Then publish a message:
+Depois, publique uma mensagem:
 
 ```powershell
 npm run publish
 ```
 
-The consumer persists orders transactionally in PostgreSQL and acknowledges a
-Pub/Sub message only after the transaction commits.
+O consumer persiste os pedidos de forma transacional no PostgreSQL e confirma
+uma mensagem do Pub/Sub somente depois que a transação é efetivada.
 
-Topic and subscription names can be changed with `PUBSUB_TOPIC` and
+Os nomes do tópico e da assinatura podem ser alterados com `PUBSUB_TOPIC` e
 `PUBSUB_SUBSCRIPTION`.
