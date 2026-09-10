@@ -4,14 +4,33 @@
   "description": "",
   "main": "publisher.js",
   "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
     "publish": "node publisher.js",
-    "subscribe": "node subscriber.js"
+    "subscribe": "node src/consumers/orders.consumer.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "db:seed": "node prisma/seed.js",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@google-cloud/pubsub": "^6.0.1"
+    "@google-cloud/pubsub": "^6.0.1",
+    "@prisma/client": "^6.19.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "zod": "^4.6.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14",
+    "prisma": "^6.19.3"
   }
 }
