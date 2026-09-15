@@ -14,11 +14,30 @@ function required(value, name) {
   return value;
 }
 
+const statusAliases = {
+  created: "pending",
+  paid: "approved",
+  pending: "pending",
+  approved: "approved",
+  shipped: "shipped",
+  delivered: "delivered",
+};
+
+function mapOrderStatus(status) {
+  const key = String(status || "").trim().toLowerCase();
+  if (key === "canceled" || key === "cancelled") return null;
+  const mapped = statusAliases[key];
+  if (!mapped) throw new Error(`Invalid status: ${status}`);
+  return mapped;
+}
+
 async function persistOrder(payload) {
   const orderUuid = required(payload.uuid, "uuid");
   const customer = required(payload.customer, "customer");
   const seller = required(payload.seller, "seller");
   const items = required(payload.items, "items");
+  const status = mapOrderStatus(required(payload.status, "status"));
+  if (!status) return;
 
   await prisma.$transaction(async (transaction) => {
     const existing = await transaction.order.findUnique({ where: { orderUuid } });
@@ -62,7 +81,7 @@ async function persistOrder(payload) {
         orderUuid,
         createdAt: new Date(required(payload.created_at, "created_at")),
         channel: payload.channel || "unknown",
-        status: payload.status,
+        status,
         customerId: BigInt(customer.id),
         sellerId: BigInt(seller.id),
         sellerName: seller.name,
@@ -111,4 +130,4 @@ subscription.on("error", (error) => console.error("Subscription error:", error.m
 
 console.log(`Waiting for orders on ${subscriptionName}...`);
 
-module.exports = { persistOrder };
+module.exports = { persistOrder, mapOrderStatus };
