@@ -8,11 +8,10 @@ datasource db {
 }
 
 enum OrderStatus {
-  created
-  paid
+  pending
+  approved
   shipped
   delivered
-  canceled
 }
 
 model Customer {

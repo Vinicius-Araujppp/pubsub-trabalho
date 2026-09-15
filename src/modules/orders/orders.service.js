@@ -1,6 +1,8 @@
 const prisma = require("../../lib/prisma");
 
-const allowedStatuses = ["created", "paid", "shipped", "delivered", "canceled"];
+const allowedStatuses = ["pending", "approved", "shipped", "delivered"];
+const paymentMethods = ["pix", "credit card", "boleto"];
+const ignoredStatuses = new Set(["canceled", "cancelled"]);
 
 function toNumber(value) {
   return Number(value || 0);
@@ -101,7 +103,32 @@ function parseDate(value, name) {
   return date;
 }
 
-function buildWhere(query) {
+function isDateOnly(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim());
+}
+
+function parseStartDate(value, name) {
+  if (isDateOnly(value)) return new Date(`${value.trim()}T00:00:00.000Z`);
+  return parseDate(value, name);
+}
+
+function parseEndDate(value, name) {
+  if (isDateOnly(value)) return new Date(`${value.trim()}T23:59:59.999Z`);
+  return parseDate(value, name);
+}
+
+function normalizePaymentMethod(method) {
+  const normalized = String(method || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[_-]+/g, " ");
+  if (normalized === "pix") return "pix";
+  if (normalized === "credit card" || normalized === "creditcard") return "credit card";
+  if (normalized === "boleto") return "boleto";
+  return null;
+}
+
+function buildWhere(query, dateField = "createdAt") {
   const where = {};
   const customerId = query["customer.id"];
   const productId = query["product.id"];
@@ -119,9 +146,9 @@ function buildWhere(query) {
     where.status = query.status;
   }
   if (query.start_date || query.end_date) {
-    where.createdAt = {};
-    if (query.start_date) where.createdAt.gte = parseDate(query.start_date, "start_date");
-    if (query.end_date) where.createdAt.lte = parseDate(query.end_date, "end_date");
+    where[dateField] = {};
+    if (query.start_date) where[dateField].gte = parseStartDate(query.start_date, "start_date");
+    if (query.end_date) where[dateField].lte = parseEndDate(query.end_date, "end_date");
   }
   return where;
 }
@@ -159,34 +186,47 @@ async function getOrder(uuid) {
 }
 
 async function getOrderItems(uuid) {
-  const order = await getOrder(uuid);
-  return { uuid: order.uuid, items: order.items };
+  const order = await prisma.order.findUnique({
+    where: { orderUuid: uuid },
+    include: { items: { include: { product: true }, orderBy: { id: "asc" } } },
+  });
+  if (!order) {
+    const error = new Error("Order not found");
+    error.statusCode = 404;
+    throw error;
+  }
+  return (order.items || []).map(serializeItem);
 }
 
 async function financialSummary(query) {
-  const where = buildWhere(query);
+  const where = buildWhere(query, "indexedAt");
   const orders = await prisma.order.findMany({
     where,
     include: { items: true, payment: true },
   });
   const summary = {
-    total_orders: orders.length,
+    total_orders: 0,
     total_revenue: 0,
     average_order_value: 0,
-    by_status: { created: 0, paid: 0, shipped: 0, delivered: 0, canceled: 0 },
-    by_payment_method: {},
+    by_status: { pending: 0, approved: 0, shipped: 0, delivered: 0 },
+    by_payment_method: Object.fromEntries(
+      paymentMethods.map((method) => [method, { count: 0, total: 0 }]),
+    ),
   };
 
   for (const order of orders) {
-    summary.by_status[order.status] += 1;
+    if (ignoredStatuses.has(order.status)) continue;
     const total = order.items.reduce(
       (sum, item) => sum + toNumber(item.unitPrice) * item.quantity,
       0,
     );
-    if (order.status !== "canceled") summary.total_revenue += total;
-    if (order.payment) {
-      const method = order.payment.method;
-      summary.by_payment_method[method] ||= { count: 0, total: 0 };
+    summary.total_orders += 1;
+    summary.total_revenue += total;
+    if (summary.by_status[order.status] !== undefined) {
+      summary.by_status[order.status] += 1;
+    }
+    const method = order.payment ? normalizePaymentMethod(order.payment.method) : null;
+    if (method) {
       summary.by_payment_method[method].count += 1;
       summary.by_payment_method[method].total += total;
     }
