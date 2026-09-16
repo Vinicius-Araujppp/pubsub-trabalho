@@ -6,8 +6,6 @@ const projectId = process.env.GOOGLE_CLOUD_PROJECT || "serjava-demo";
 const topicName = process.env.PUBSUB_TOPIC || "eventos";
 const pubsub = new PubSub({ projectId });
 
-// O PDF também lista `canceled`, mas o consumer atual descarta esses pedidos
-// em vez de persistir, então eles ficam de fora da massa gerada.
 const statuses = ["created", "paid", "shipped", "delivered"];
 const paymentMethods = ["pix", "credit_card", "boleto"];
 const channels = ["mobile_app", "web", "marketplace"];
