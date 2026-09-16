@@ -4,16 +4,6 @@ Modelo relacional que recebe os pedidos consumidos do Google Cloud Pub/Sub.
 
 ![DER do banco de dados](der.png)
 
-Versão vetorial, para impressão e slides: **[der.svg](der.svg)**.
-
-O diagrama é gerado a partir de [der.mmd](der.mmd) (Mermaid), que é a fonte
-única — edite esse arquivo e regenere as duas imagens:
-
-```powershell
-npx -y @mermaid-js/mermaid-cli -i docs/der.mmd -o docs/der.svg -b white
-npx -y @mermaid-js/mermaid-cli -i docs/der.mmd -o docs/der.png -b white -w 2400 -s 2
-```
-
 ## Cardinalidades
 
 | Relacionamento | Cardinalidade | Regra |
