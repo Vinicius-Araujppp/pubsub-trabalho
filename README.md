@@ -7,8 +7,16 @@
 
 ## API + PostgreSQL
 
-A API usa Express, Prisma e PostgreSQL. Inicie o banco de dados e aplique o
-schema com:
+A API usa Express, Prisma e PostgreSQL. Antes de tudo, crie o seu `.env` a
+partir do modelo — ele é ignorado pelo git, então cada pessoa precisa criar o
+seu:
+
+```powershell
+copy .env.example .env
+npm install
+```
+
+Depois inicie o banco de dados e aplique o schema:
 
 ```powershell
 npm run db:up
