@@ -1,22 +1,9 @@
 # Pub/Sub JavaScript
 
-## Documentação
-
-- [DER do Banco de Dados](docs/DER.md) - diagrama, cardinalidades, dicionário
-  de dados e decisões de modelagem.
-
 ## API + PostgreSQL
 
-A API usa Express, Prisma e PostgreSQL. Antes de tudo, crie o seu `.env` a
-partir do modelo — ele é ignorado pelo git, então cada pessoa precisa criar o
-seu:
-
-```powershell
-copy .env.example .env
-npm install
-```
-
-Depois inicie o banco de dados e aplique o schema:
+A API usa Express, Prisma e PostgreSQL. Inicie o banco de dados e aplique o
+schema com:
 
 ```powershell
 npm run db:up
@@ -66,25 +53,11 @@ Abra dois terminais neste diretório. Inicie o subscriber primeiro:
 npm run subscribe
 ```
 
-Depois, publique pedidos no tópico:
+Depois, publique uma mensagem:
 
 ```powershell
-npm run publish              # 1 pedido aleatório
-npm run publish:sample       # o pedido ORD-2025-0001 exato do enunciado
-npm run publish:mass         # 50 pedidos
-npm run publish -- --count 200
+npm run publish
 ```
-
-O `publisher.js` gera pedidos no mesmo contrato de payload que a API devolve:
-4 clientes, 3 sellers, 6 produtos com categoria e subcategoria fixas, 1 a 3
-itens por pedido, os três métodos de pagamento (`pix`, `credit_card`,
-`boleto`) e datas espalhadas nos últimos 90 dias — o suficiente para
-demonstrar os filtros, a ordenação e o `/orders/financial-summary` com massa
-real. Cada execução usa um prefixo próprio de uuid, então rodar várias vezes
-nunca colide com o que já está no banco.
-
-`--sample` publica o payload literal do enunciado, útil para mostrar que o
-contrato bate campo a campo.
 
 O consumer persiste os pedidos de forma transacional no PostgreSQL e confirma
 uma mensagem do Pub/Sub somente depois que a transação é efetivada.
