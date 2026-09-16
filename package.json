@@ -7,6 +7,8 @@
     "dev": "nodemon src/server.js",
     "start": "node src/server.js",
     "publish": "node publisher.js",
+    "publish:sample": "node publisher.js --sample",
+    "publish:mass": "node publisher.js --count 50",
     "subscribe": "node src/consumers/orders.consumer.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
