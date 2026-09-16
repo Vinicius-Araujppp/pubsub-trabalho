@@ -1,72 +1,17 @@
 # DER — Banco de Dados
 
 Modelo relacional que recebe os pedidos consumidos do Google Cloud Pub/Sub.
-O diagrama abaixo é renderizado automaticamente pelo GitHub.
 
-```mermaid
-erDiagram
-    cliente    ||--o{ pedido      : "faz"
-    pedido     ||--|{ item_pedido : "contém"
-    produto    ||--o{ item_pedido : "é vendido em"
-    pedido     ||--o| pagamento   : "possui"
-    pedido     ||--o| envio       : "possui"
+![DER do banco de dados](der.png)
 
-    cliente {
-        bigint id PK "id do cliente vindo do marketplace"
-        text   name
-        text   email
-        text   document "CPF/CNPJ"
-        timestamp created_at "quando o cliente entrou na base"
-    }
+Versão vetorial, para impressão e slides: **[der.svg](der.svg)**.
 
-    pedido {
-        uuid      id PK "chave interna gerada pelo banco"
-        text      order_uuid UK "uuid do pedido no marketplace"
-        timestamp created_at "data do pedido na origem"
-        timestamp indexed_at "quando a mensagem foi indexada"
-        text      channel "mobile_app, web, marketplace"
-        enum      status "pending, approved, shipped, delivered"
-        bigint    customer_id FK
-        bigint    seller_id
-        text      seller_name
-        text      seller_city
-        text      seller_state
-        jsonb     metadata "source, user_agent, ip_address"
-    }
+O diagrama é gerado a partir de [der.mmd](der.mmd) (Mermaid), que é a fonte
+única — edite esse arquivo e regenere as duas imagens:
 
-    produto {
-        text id PK "id do produto no marketplace"
-        text title
-        text category_id
-        text category_name
-        text sub_category_id
-        text sub_category_name
-    }
-
-    item_pedido {
-        uuid    order_id PK "FK para pedido - parte 1 da chave composta"
-        int     id PK "número do item dentro do pedido"
-        text    product_id FK
-        decimal unit_price "14,2 — preço unitário congelado"
-        int     quantity
-    }
-
-    pagamento {
-        uuid id PK
-        uuid order_id FK "UNIQUE - garante o 1:1 com pedido"
-        text method "pix, credit_card, boleto"
-        text status
-        text transaction_id
-    }
-
-    envio {
-        uuid id PK
-        uuid order_id FK "UNIQUE - garante o 1:1 com pedido"
-        text carrier "Correios, Jadlog, Loggi"
-        text service "SEDEX, Package, Express"
-        text status
-        text tracking_code
-    }
+```powershell
+npx -y @mermaid-js/mermaid-cli -i docs/der.mmd -o docs/der.svg -b white
+npx -y @mermaid-js/mermaid-cli -i docs/der.mmd -o docs/der.png -b white -w 2400 -s 2
 ```
 
 ## Cardinalidades
