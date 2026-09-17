@@ -1,11 +1,6 @@
 require("dotenv").config();
 
-const { PubSub } = require("@google-cloud/pubsub");
-
-const projectId = process.env.GOOGLE_CLOUD_PROJECT || "serjava-demo";
-const subscriptionName =
-  process.env.PUBSUB_SUBSCRIPTION || "eventos-consumidor";
-const pubsub = new PubSub({ projectId });
+const { pubsub, subscriptionName } = require("./src/lib/pubsub");
 const subscription = pubsub.subscription(subscriptionName);
 
 subscription.on("message", (message) => {

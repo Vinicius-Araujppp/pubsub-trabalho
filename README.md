@@ -2,12 +2,13 @@
 
 ## API + PostgreSQL
 
-A API usa Express, Prisma e PostgreSQL. Inicie o banco de dados e aplique o
-schema com:
+A API usa Express, Prisma e PostgreSQL. O Postgres do Docker usa a porta
+**5433** por padrão (para não colidir com um Postgres local na 5432). Inicie o
+banco e aplique as migrations com:
 
 ```powershell
 npm run db:up
-npx prisma migrate dev --name init
+npx prisma migrate deploy
 npm run db:seed
 npm start
 ```
@@ -24,43 +25,42 @@ Endpoints disponíveis:
 - `GET /orders/financial-summary?seller.id=55&start_date=2025-01-01&end_date=2025-12-31`
 
 Os totais dos pedidos e dos itens são calculados com base em
-`unit_price * quantity`. Pedidos cancelados não entram na receita financeira.
+`unit_price * quantity`. Pedidos `canceled` não entram em `total_orders`,
+`total_revenue`, ticket médio nem `by_payment_method`; entram só em
+`by_status.canceled`.
+
 Os status aceitos são `created`, `paid`, `shipped`, `delivered` e `canceled`.
+Em `financial-summary`, `by_payment_method` usa as chaves `pix`, `credit_card` e
+`boleto`.
 
 ## Configuração do Google Cloud
 
-```powershell
-gcloud config set project serjava-demo
-gcloud services enable pubsub.googleapis.com
-gcloud pubsub topics create eventos
-gcloud pubsub subscriptions create eventos-consumidor --topic=eventos
-```
+Use o projeto, o tópico e a subscription já criados pelo professor:
 
-Autentique-se sem armazenar uma chave neste projeto:
+- Project: `serjava-demo`
+- Tópico: `aula-pub` (`projects/serjava-demo/topics/aula-pub`)
+- Subscription: `grupo-g` (`projects/serjava-demo/subscriptions/grupo-g`)
 
-```powershell
-gcloud auth application-default login
-```
-
-Para uma conta de serviço, defina `GOOGLE_APPLICATION_CREDENTIALS` apontando
-para um novo arquivo de chave rotacionado, mantido fora deste repositório.
+Copie `.env.example` para `.env` e defina `GOOGLE_APPLICATION_CREDENTIALS`
+apontando para o JSON da conta de serviço (arquivo fora do Git).
 
 ## Execução
 
-Abra dois terminais neste diretório. Inicie o subscriber primeiro:
+Abra dois terminais neste diretório. A API (`npm start`) e o consumer podem
+rodar juntos. Inicie o subscriber:
 
 ```powershell
 npm run subscribe
 ```
 
-Depois, publique uma mensagem:
-
-```powershell
-npm run publish
-```
+O worker lê `grupo-g` (pedidos do sistema de vendas da aula). Publicar no
+tópico (`npm run publish` / `npm run publish:sample`) só funciona se a conta
+de serviço tiver permissão de publisher em `aula-pub`. Sem isso, a demo da API
+usa o seed (`ORD-2025-0001`).
 
 O consumer persiste os pedidos de forma transacional no PostgreSQL e confirma
-uma mensagem do Pub/Sub somente depois que a transação é efetivada.
+uma mensagem do Pub/Sub depois que a transação é efetivada. Payload inválido é
+confirmado (ack) para não reentregar em loop; falha de banco dá nack.
 
-Os nomes do tópico e da assinatura podem ser alterados com `PUBSUB_TOPIC` e
-`PUBSUB_SUBSCRIPTION`.
+O cliente Pub/Sub usa `GOOGLE_CLOUD_PROJECT`, `PUBSUB_TOPIC` (`aula-pub`),
+`PUBSUB_SUBSCRIPTION` (`grupo-g`) e exige `GOOGLE_APPLICATION_CREDENTIALS`.

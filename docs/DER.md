@@ -49,12 +49,12 @@ campos e nenhum atributo próprio a manter, então ficou como colunas do pedido,
 com índice em `seller_id` para o filtro `?seller.id=` e para o
 `/orders/financial-summary`.
 
-**`status` como `ENUM` no banco.** O tipo `OrderStatus` hoje aceita
-`pending`, `approved`, `shipped` e `delivered`. O consumer traduz os nomes do
-enunciado na entrada (`created` → `pending`, `paid` → `approved`).
-⚠️ O enunciado também lista `canceled`, que ainda não existe no enum — pedidos
-cancelados são descartados pelo consumer em vez de persistidos. Ajustar isso
-exige nova migration e está fora do escopo deste documento.
+**`status` como `ENUM` no banco.** O tipo `OrderStatus` aceita
+`created`, `paid`, `shipped`, `delivered` e `canceled` (Considerações do
+enunciado). O consumer ainda aceita aliases na entrada (`pending` → `created`,
+`approved` → `paid`, `separated` → `paid`, `cancelled` → `canceled`). Pedidos
+`canceled` são persistidos; a API os exclui da receita e do ticket médio, mas
+conta em `by_status.canceled`.
 
 **`metadata` como JSONB.** `source`, `user_agent` e `ip_address` são dados de
 telemetria sem consulta prevista. `JSONB` guarda o bloco inteiro sem travar o

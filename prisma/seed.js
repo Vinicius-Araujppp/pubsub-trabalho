@@ -32,7 +32,7 @@ async function main() {
       orderUuid: "ORD-2025-0001",
       createdAt: new Date("2025-10-01T10:15:00Z"),
       channel: "mobile_app",
-      status: "approved",
+      status: "paid",
       customerId: customer.id,
       sellerId: 55n,
       sellerName: "Tech Store",

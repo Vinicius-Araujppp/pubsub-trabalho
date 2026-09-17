@@ -1,14 +1,8 @@
 require("dotenv").config();
 
-const { PubSub } = require("@google-cloud/pubsub");
+const { pubsub, topicName } = require("./src/lib/pubsub");
 
-const projectId = process.env.GOOGLE_CLOUD_PROJECT || "serjava-demo";
-const topicName = process.env.PUBSUB_TOPIC || "eventos";
-const pubsub = new PubSub({ projectId });
-
-// O PDF também lista `canceled`, mas o consumer atual descarta esses pedidos
-// em vez de persistir, então eles ficam de fora da massa gerada.
-const statuses = ["created", "paid", "shipped", "delivered"];
+const statuses = ["created", "paid", "shipped", "delivered", "canceled"];
 const paymentMethods = ["pix", "credit_card", "boleto"];
 const channels = ["mobile_app", "web", "marketplace"];
 
@@ -76,6 +70,7 @@ const shipmentStatusByOrder = {
   paid: "processing",
   shipped: "shipped",
   delivered: "delivered",
+  canceled: "canceled",
 };
 
 function randomInt(min, max) {
@@ -141,7 +136,7 @@ function buildOrder(prefix, sequence) {
     },
     payment: {
       method: pick(paymentMethods),
-      status: status === "created" ? "pending" : "approved",
+      status: status === "created" ? "pending" : status === "canceled" ? "canceled" : "approved",
       transaction_id: `pay_${randomInt(100000000, 999999999)}`,
     },
     metadata: {

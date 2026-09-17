@@ -1,12 +1,8 @@
 require("dotenv").config();
 
-const { PubSub } = require("@google-cloud/pubsub");
 const prisma = require("../lib/prisma");
+const { pubsub, subscriptionName } = require("../lib/pubsub");
 
-const pubsub = new PubSub({
-  projectId: process.env.GOOGLE_CLOUD_PROJECT || "serjava-demo",
-});
-const subscriptionName = process.env.PUBSUB_SUBSCRIPTION || "eventos-consumidor";
 const subscription = pubsub.subscription(subscriptionName);
 
 function required(value, name) {
@@ -14,21 +10,37 @@ function required(value, name) {
   return value;
 }
 
+function first(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return undefined;
+}
+
 const statusAliases = {
-  created: "pending",
-  paid: "approved",
-  pending: "pending",
-  approved: "approved",
+  created: "created",
+  paid: "paid",
   shipped: "shipped",
   delivered: "delivered",
+  canceled: "canceled",
+  cancelled: "canceled",
+  pending: "created",
+  approved: "paid",
+  separated: "paid",
 };
 
 function mapOrderStatus(status) {
   const key = String(status || "").trim().toLowerCase();
-  if (key === "canceled" || key === "cancelled") return null;
   const mapped = statusAliases[key];
   if (!mapped) throw new Error(`Invalid status: ${status}`);
   return mapped;
+}
+
+function isTransientError(error) {
+  const code = error.code || "";
+  if (["P1001", "P1002", "P1008", "P1017", "P2024", "P2034"].includes(code)) return true;
+  const message = String(error.message || "").toLowerCase();
+  return message.includes("can't reach database server") || message.includes("connection refused");
 }
 
 async function persistOrder(payload) {
@@ -37,7 +49,7 @@ async function persistOrder(payload) {
   const seller = required(payload.seller, "seller");
   const items = required(payload.items, "items");
   const status = mapOrderStatus(required(payload.status, "status"));
-  if (!status) return;
+  const createdAtValue = required(first(payload.created_at, payload.createdAt), "created_at");
 
   await prisma.$transaction(async (transaction) => {
     const existing = await transaction.order.findUnique({ where: { orderUuid } });
@@ -62,16 +74,16 @@ async function persistOrder(payload) {
           title: product.title,
           categoryId: item.category?.id || "unknown",
           categoryName: item.category?.name || "unknown",
-          subCategoryId: item.category?.sub_category?.id || "unknown",
-          subCategoryName: item.category?.sub_category?.name || "unknown",
+          subCategoryId: item.category?.sub_category?.id || item.category?.subCategory?.id || "unknown",
+          subCategoryName: item.category?.sub_category?.name || item.category?.subCategory?.name || "unknown",
         },
         create: {
           id: product.id,
           title: product.title,
           categoryId: item.category?.id || "unknown",
           categoryName: item.category?.name || "unknown",
-          subCategoryId: item.category?.sub_category?.id || "unknown",
-          subCategoryName: item.category?.sub_category?.name || "unknown",
+          subCategoryId: item.category?.sub_category?.id || item.category?.subCategory?.id || "unknown",
+          subCategoryName: item.category?.sub_category?.name || item.category?.subCategory?.name || "unknown",
         },
       });
     }
@@ -79,7 +91,7 @@ async function persistOrder(payload) {
     await transaction.order.create({
       data: {
         orderUuid,
-        createdAt: new Date(required(payload.created_at, "created_at")),
+        createdAt: new Date(createdAtValue),
         channel: payload.channel || "unknown",
         status,
         customerId: BigInt(customer.id),
@@ -92,23 +104,29 @@ async function persistOrder(payload) {
           create: items.map((item) => ({
             id: item.id,
             productId: item.product.id,
-            unitPrice: item.unit_price,
+            unitPrice: first(item.unit_price, item.unitPrice),
             quantity: item.quantity,
           })),
         },
         payment: payload.payment
           ? { create: {
-              method: payload.payment.method,
-              status: payload.payment.status,
-              transactionId: payload.payment.transaction_id,
+              method: payload.payment.method || "unknown",
+              status: payload.payment.status || "unknown",
+              transactionId: first(
+                payload.payment.transaction_id,
+                payload.payment.transactionId,
+              ) || "unknown",
             } }
           : undefined,
         shipment: payload.shipment
           ? { create: {
-              carrier: payload.shipment.carrier,
-              service: payload.shipment.service,
-              status: payload.shipment.status,
-              trackingCode: payload.shipment.tracking_code,
+              carrier: payload.shipment.carrier || "unknown",
+              service: payload.shipment.service || "unknown",
+              status: payload.shipment.status || "unknown",
+              trackingCode: first(
+                payload.shipment.tracking_code,
+                payload.shipment.trackingCode,
+              ) || "unknown",
             } }
           : undefined,
       },
@@ -122,7 +140,11 @@ subscription.on("message", async (message) => {
     message.ack();
   } catch (error) {
     console.error("Could not persist order:", error.message);
-    message.nack();
+    if (isTransientError(error)) {
+      message.nack();
+      return;
+    }
+    message.ack();
   }
 });
 

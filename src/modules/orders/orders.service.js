@@ -1,8 +1,8 @@
 const prisma = require("../../lib/prisma");
 
-const allowedStatuses = ["pending", "approved", "shipped", "delivered"];
-const paymentMethods = ["pix", "credit card", "boleto"];
-const ignoredStatuses = new Set(["canceled", "cancelled"]);
+const allowedStatuses = ["created", "paid", "shipped", "delivered", "canceled"];
+const paymentMethods = ["pix", "credit_card", "boleto"];
+const excludedFromRevenue = new Set(["canceled"]);
 
 function toNumber(value) {
   return Number(value || 0);
@@ -123,7 +123,7 @@ function normalizePaymentMethod(method) {
     .toLowerCase()
     .replace(/[_-]+/g, " ");
   if (normalized === "pix") return "pix";
-  if (normalized === "credit card" || normalized === "creditcard") return "credit card";
+  if (normalized === "credit card" || normalized === "creditcard") return "credit_card";
   if (normalized === "boleto") return "boleto";
   return null;
 }
@@ -208,23 +208,23 @@ async function financialSummary(query) {
     total_orders: 0,
     total_revenue: 0,
     average_order_value: 0,
-    by_status: { pending: 0, approved: 0, shipped: 0, delivered: 0 },
+    by_status: { created: 0, paid: 0, shipped: 0, delivered: 0, canceled: 0 },
     by_payment_method: Object.fromEntries(
       paymentMethods.map((method) => [method, { count: 0, total: 0 }]),
     ),
   };
 
   for (const order of orders) {
-    if (ignoredStatuses.has(order.status)) continue;
+    if (summary.by_status[order.status] !== undefined) {
+      summary.by_status[order.status] += 1;
+    }
+    if (excludedFromRevenue.has(order.status)) continue;
     const total = order.items.reduce(
       (sum, item) => sum + toNumber(item.unitPrice) * item.quantity,
       0,
     );
     summary.total_orders += 1;
     summary.total_revenue += total;
-    if (summary.by_status[order.status] !== undefined) {
-      summary.by_status[order.status] += 1;
-    }
     const method = order.payment ? normalizePaymentMethod(order.payment.method) : null;
     if (method) {
       summary.by_payment_method[method].count += 1;
