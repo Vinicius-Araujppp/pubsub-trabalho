@@ -209,7 +209,7 @@ const summaryStatusKey = {
 };
 
 async function financialSummary(query) {
-  const where = buildWhere(query, "indexedAt");
+  const where = buildWhere(query, "createdAt");
   const orders = await prisma.order.findMany({
     where,
     include: { items: true, payment: true },
