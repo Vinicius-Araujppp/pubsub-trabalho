@@ -40,7 +40,13 @@ function isTransientError(error) {
   const code = error.code || "";
   if (["P1001", "P1002", "P1008", "P1017", "P2024", "P2034"].includes(code)) return true;
   const message = String(error.message || "").toLowerCase();
-  return message.includes("can't reach database server") || message.includes("connection refused");
+  return message.includes("can't reach database server")
+    || message.includes("connection refused")
+    || message.includes("deadlock detected");
+}
+
+function wait(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function persistOrder(payload) {
@@ -50,8 +56,11 @@ async function persistOrder(payload) {
   const items = required(payload.items, "items");
   const status = mapOrderStatus(required(payload.status, "status"));
   const createdAtValue = required(first(payload.created_at, payload.createdAt), "created_at");
+  const orderedItems = [...items].sort((left, right) => (
+    String(left.product?.id || "").localeCompare(String(right.product?.id || ""))
+  ));
 
-  await prisma.$transaction(async (transaction) => {
+  const saveTransaction = () => prisma.$transaction(async (transaction) => {
     const existing = await transaction.order.findUnique({ where: { orderUuid } });
     if (existing) return;
 
@@ -66,7 +75,7 @@ async function persistOrder(payload) {
       },
     });
 
-    for (const item of items) {
+    for (const item of orderedItems) {
       const product = required(item.product, "item.product");
       await transaction.product.upsert({
         where: { id: product.id },
@@ -101,7 +110,7 @@ async function persistOrder(payload) {
         sellerState: seller.state,
         metadata: payload.metadata || {},
         items: {
-          create: items.map((item) => ({
+          create: orderedItems.map((item) => ({
             id: item.id,
             productId: item.product.id,
             unitPrice: first(item.unit_price, item.unitPrice),
@@ -132,6 +141,16 @@ async function persistOrder(payload) {
       },
     });
   });
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await saveTransaction();
+      return;
+    } catch (error) {
+      if (!isTransientError(error) || attempt === 2) throw error;
+      await wait(100 * (attempt + 1));
+    }
+  }
 }
 
 subscription.on("message", async (message) => {
