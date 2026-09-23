@@ -198,8 +198,6 @@ async function getOrderItems(uuid) {
   return (order.items || []).map(serializeItem);
 }
 
-// Maps the internal DB status to the summary key names required by the API contract.
-// The DB uses created/paid (from the "Considerações"); the PDF example uses pending/approved.
 const summaryStatusKey = {
   created: "pending",
   paid: "approved",
@@ -209,7 +207,7 @@ const summaryStatusKey = {
 };
 
 async function financialSummary(query) {
-  const where = buildWhere(query, "createdAt");
+  const where = buildWhere(query, "indexedAt");
   const orders = await prisma.order.findMany({
     where,
     include: { items: true, payment: true },
