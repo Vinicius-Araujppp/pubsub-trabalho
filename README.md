@@ -30,6 +30,9 @@ Os totais dos pedidos e dos itens são calculados com base em
 `by_status.canceled`.
 
 Os status aceitos são `created`, `paid`, `shipped`, `delivered` e `canceled`.
+No payload recebido, `separated` é convertido para `paid` e `approved` é
+aceito como alias de `paid`. O resumo financeiro usa os status oficiais do
+modelo: `created`, `paid`, `shipped`, `delivered` e `canceled`.
 Em `financial-summary`, `by_payment_method` usa as chaves `pix`, `credit_card` e
 `boleto`.
 
