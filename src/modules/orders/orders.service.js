@@ -198,25 +198,40 @@ async function getOrderItems(uuid) {
   return (order.items || []).map(serializeItem);
 }
 
+// Maps the internal DB status to the summary key names required by the API contract.
+// The DB uses created/paid (from the "Considerações"); the PDF example uses pending/approved.
+const summaryStatusKey = {
+  created: "pending",
+  paid: "approved",
+  shipped: "shipped",
+  delivered: "delivered",
+  canceled: "canceled",
+};
+
 async function financialSummary(query) {
   const where = buildWhere(query, "indexedAt");
   const orders = await prisma.order.findMany({
     where,
     include: { items: true, payment: true },
   });
+
+  // by_status follows the PDF example: pending, approved, shipped, delivered.
+  // canceled is intentionally excluded from the summary keys (not in the PDF example)
+  // but canceled orders are still excluded from revenue/total_orders below.
   const summary = {
     total_orders: 0,
     total_revenue: 0,
     average_order_value: 0,
-    by_status: { created: 0, paid: 0, shipped: 0, delivered: 0, canceled: 0 },
+    by_status: { pending: 0, approved: 0, shipped: 0, delivered: 0 },
     by_payment_method: Object.fromEntries(
       paymentMethods.map((method) => [method, { count: 0, total: 0 }]),
     ),
   };
 
   for (const order of orders) {
-    if (summary.by_status[order.status] !== undefined) {
-      summary.by_status[order.status] += 1;
+    const statusKey = summaryStatusKey[order.status];
+    if (statusKey && summary.by_status[statusKey] !== undefined) {
+      summary.by_status[statusKey] += 1;
     }
     if (excludedFromRevenue.has(order.status)) continue;
     const total = order.items.reduce(
